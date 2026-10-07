@@ -23,7 +23,7 @@ import java.io.IOException;
 
 @Mod(RealHardcoreMod.MODID)
 public class RealHardcoreMod {
-    public static final String MODID = "realhardcore";
+    public static final String MODID = "examplemod";
 
     public RealHardcoreMod() {
         // Регистрируем наш класс в шине событий Forge
