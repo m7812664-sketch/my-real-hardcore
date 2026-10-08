@@ -33,7 +33,7 @@ public class RealHardcoreMod {
     }
 
     /**
-     * ЛОГИКА 1: ЗАПРЕТ ТОТЕМОВ И КАСТОМНОЕ СООБЩЕНИЕ В ЧАТ
+     * ЛОГИКА 1: ЗАПРЕТ ТОТЕМОВ И СООБЩЕНИЕ В ЧАТ
      */
     @SubscribeEvent
     public void onPlayerDeath(LivingDeathEvent event) {
@@ -43,7 +43,6 @@ public class RealHardcoreMod {
             if (!level.isClientSide() && level.getLevelData().isHardcore()) {
                 boolean hadTotem = false;
 
-                // Базовый метод .getItem() вместо .is() — работает на любых сборках Forge
                 if (player.getMainHandItem().getItem() == Items.TOTEM_OF_UNDYING) {
                     player.getMainHandItem().shrink(1);
                     hadTotem = true;
@@ -67,14 +66,14 @@ public class RealHardcoreMod {
     }
 
     /**
-     * ЛОГИКА 2 и 3: РАБОТА С КЛИЕНТСКИМ ИНТЕРФЕЙСОМ
+     * ЛОГИКА 2 и 3: РАБОТА С КЛИЕНТСКИМ ИНТЕРФЕЙСОМ (Без builder() и лямбд)
      */
     @Mod.EventBusSubscriber(modid = MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
     public static class ClientHandler {
 
         @SubscribeEvent
         public static void onScreenInit(ScreenEvent.Init.Post event) {
-            Minecraft mc = Minecraft.getInstance();
+            final Minecraft mc = Minecraft.getInstance();
             if (mc.level == null || !mc.level.getLevelData().isHardcore()) return;
 
             // 2. Блокировка кнопки читов в LAN-меню
@@ -115,6 +114,7 @@ public class RealHardcoreMod {
                     int width = titleButton.getWidth();
                     int height = titleButton.getHeight();
 
+                    // Создаем анонимный обработчик нажатия
                     Button.OnPress pressAction = new Button.OnPress() {
                         @Override
                         public void onPress(Button button) {
@@ -124,9 +124,10 @@ public class RealHardcoreMod {
 
                     Component btnText = Component.literal("УДАЛИТЬ МИР").withStyle(ChatFormatting.RED);
 
-                    event.addListener(Button.builder(btnText, pressAction)
-                            .bounds(x, y, width, height)
-                            .build());
+                    // Прямой вызов конструктора (напрямую создаем объект Button)
+                    Button myNewButton = new Button(x, y, width, height, btnText, pressAction, Button.DEFAULT_NARRATION);
+
+                    event.addListener(myNewButton);
                 }
             }
         }
