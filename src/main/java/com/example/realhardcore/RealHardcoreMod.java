@@ -3,6 +3,7 @@ package com.example.realhardcore;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.DeathScreen;
 import net.minecraft.client.gui.screens.ShareToLanScreen;
 import net.minecraft.network.chat.Component;
@@ -32,13 +33,14 @@ public class RealHardcoreMod {
     public RealHardcoreMod() {
         MinecraftForge.EVENT_BUS.register(this);
         
+        // Подключаем интерфейсы только если игра запущена на ПК игрока
         if (FMLEnvironment.dist == Dist.CLIENT) {
             MinecraftForge.EVENT_BUS.register(ClientHandler.class);
         }
     }
 
     /**
-     * ЛОГИКА 1: ЗАПРЕТ ТОТЕМОВ И СООБЩЕНИЕ В ЧАТ ЧЕРЕЗ ФАЙЛ ПЕРЕВОДА
+     * ЛОГИКА 1: ЗАПРЕТ ТОТЕМОВ И КАСТОМНОЕ СООБЩЕНИЕ В ЧАТ
      */
     @SubscribeEvent
     public void onPlayerDeath(LivingDeathEvent event) {
@@ -59,8 +61,7 @@ public class RealHardcoreMod {
 
                 if (hadTotem) {
                     String playerName = player.getGameProfile().getName();
-                    // Используем безопасный метод translatable, который берет русский текст из ru_ru.json
-                    Component customDeathMessage = Component.translatable("chat.realhardcore.totem_fail", playerName)
+                    Component customDeathMessage = Component.literal(playerName + " пытался спастись тотемом бессмертия от смерти")
                             .withStyle(ChatFormatting.RED);
                     
                     if (level.getServer() != null) {
@@ -72,7 +73,7 @@ public class RealHardcoreMod {
     }
 
     /**
-     * ЛОГИКА 2 и 3: РАБОТА С КЛИЕНТСКИМ ИНТЕРФЕЙСОМ
+     * ЛОГИКА 2 и 3: РАБОТА С КЛИЕНТСКИМ ИНТЕРФЕЙСОМ (Совместимо с сервером)
      */
     @OnlyIn(Dist.CLIENT)
     public static class ClientHandler {
@@ -84,8 +85,8 @@ public class RealHardcoreMod {
 
             // 2. Блокировка кнопки читов в LAN-меню
             if (event.getScreen() instanceof ShareToLanScreen) {
-                List<?> listeners = event.getListeners();
-                for (Object listener : listeners) {
+                List<GuiEventListener> listeners = event.getListenersList();
+                for (GuiEventListener listener : listeners) {
                     if (listener instanceof Button) {
                         Button button = (Button) listener;
                         String msg = button.getMessage().getString().toLowerCase();
@@ -96,12 +97,12 @@ public class RealHardcoreMod {
                 }
             }
 
-            // 3. Изменение экрана смерти
+            // 3. Изменение экрана смерти (Замена кнопки "Главное меню")
             if (event.getScreen() instanceof DeathScreen) {
                 Button titleButton = null;
-                List<?> listeners = event.getListeners();
+                List<GuiEventListener> listeners = event.getListenersList();
                 
-                for (Object listener : listeners) {
+                for (GuiEventListener listener : listeners) {
                     if (listener instanceof Button) {
                         Button btn = (Button) listener;
                         String msg = btn.getMessage().getString().toLowerCase();
@@ -120,6 +121,7 @@ public class RealHardcoreMod {
                     int width = titleButton.getWidth();
                     int height = titleButton.getHeight();
 
+                    // Анонимный класс вместо лямбды решает проблемы компилятора Linux
                     Button.OnPress pressAction = new Button.OnPress() {
                         @Override
                         public void onPress(Button button) {
@@ -127,10 +129,9 @@ public class RealHardcoreMod {
                         }
                     };
 
-                    // Текст кнопки подгружается из локализации и окрашивается
-                    Component btnText = Component.translatable("gui.realhardcore.delete_world")
-                            .withStyle(ChatFormatting.RED);
+                    Component btnText = Component.literal("УДАЛИТЬ МИР").withStyle(ChatFormatting.RED);
 
+                    // Правильный метод Forge 1.20.1 для добавления кнопок на экран через ивент
                     event.addListener(Button.builder(btnText, pressAction)
                             .bounds(x, y, width, height)
                             .build());
@@ -156,10 +157,10 @@ public class RealHardcoreMod {
                              .map(Path::toFile)
                              .forEach(File::delete);
                         
-                        System.out.println("[RealHardcore] World directory successfully deleted.");
+                        System.out.println("[РеальныйХардкор] Мир успешно удален.");
                     }
                 } catch (IOException e) {
-                    System.err.println("[RealHardcore] Failed to delete world: " + e.getMessage());
+                    System.err.println("[РеальныйХардкор] Ошибка удаления мира: " + e.getMessage());
                 }
             }
         }
