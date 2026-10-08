@@ -14,8 +14,8 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Download Forge MDK
-        run: wget -O mdk.zip https://minecraftforge.net
+      - name: Download Forge MDK via Curl
+        run: curl -L -o mdk.zip https://minecraftforge.net
 
       - name: Unzip MDK
         run: unzip mdk.zip -d forge_mdk
