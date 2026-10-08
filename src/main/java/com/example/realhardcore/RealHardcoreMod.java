@@ -14,10 +14,12 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Comparator;
 
 @Mod(RealHardcoreMod.MODID)
 public class RealHardcoreMod {
@@ -38,7 +40,6 @@ public class RealHardcoreMod {
             if (!level.isClientSide() && level.getLevelData().isHardcore()) {
                 boolean hadTotem = false;
 
-                // Проверяем тотем в основной и левой руке
                 if (player.getMainHandItem().is(Items.TOTEM_OF_UNDYING)) {
                     player.getMainHandItem().shrink(1);
                     hadTotem = true;
@@ -48,7 +49,6 @@ public class RealHardcoreMod {
                     hadTotem = true;
                 }
 
-                // Кастомный русский текст при попытке спастись тотемом
                 if (hadTotem) {
                     String playerName = player.getGameProfile().getName();
                     Component customDeathMessage = Component.literal("§c" + playerName + " пытался спастись тотемом бессмертия от смерти");
@@ -79,9 +79,8 @@ public class RealHardcoreMod {
                         .map(listener -> (Button) listener)
                         .forEach(button -> {
                             String msg = button.getMessage().getString().toLowerCase();
-                            // Ищем кнопку читов по русским и английским ключевым словам
                             if (msg.contains("читы") || msg.contains("cheat")) {
-                                button.active = false; // Делаем её серой и некликабельной
+                                button.active = false;
                             }
                         });
             }
@@ -106,7 +105,6 @@ public class RealHardcoreMod {
                     int width = titleButton.getWidth();
                     int height = titleButton.getHeight();
 
-                    // Добавляем красивую красную кнопку на русском
                     event.addListener(Button.builder(
                             Component.literal("§cУДАЛИТЬ МИР"), 
                             button -> deleteCurrentWorldAndLeave(mc)
@@ -115,7 +113,7 @@ public class RealHardcoreMod {
             }
         }
 
-        // Метод удаления папки мира с русскими логами
+        // Чистый метод удаления папки на Java NIO (без сторонних библиотек Apache)
         private static void deleteCurrentWorldAndLeave(Minecraft mc) {
             if (mc.getSingleplayerServer() != null) {
                 File savesDir = new File(mc.gameDirectory, "saves");
@@ -129,11 +127,16 @@ public class RealHardcoreMod {
 
                 try {
                     if (worldFolder.exists()) {
-                        FileUtils.deleteDirectory(worldFolder);
-                        System.out.println("[РеальныйХардкор] Мир успешно удален: " + worldFolder.getName());
+                        // Удаляем рекурсивно все файлы и папки внутри сохранения стандартным Java Files API
+                        Files.walk(worldFolder.toPath())
+                             .sorted(Comparator.reverseOrder())
+                             .map(Path::toFile)
+                             .forEach(File::delete);
+                        
+                        System.out.println("[РеальныйХардкор] Мир успешно удален.");
                     }
                 } catch (IOException e) {
-                    System.err.println("[РеальныйХардкор] Ошибка автоматического удаления мира: " + e.getMessage());
+                    System.err.println("[РеальныйХардкор] Ошибка удаления мира: " + e.getMessage());
                 }
             }
         }
