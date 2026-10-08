@@ -9,11 +9,13 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,6 +29,11 @@ public class RealHardcoreMod {
 
     public RealHardcoreMod() {
         MinecraftForge.EVENT_BUS.register(this);
+        
+        // Безопасное подключение клиентских интерфейсов
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            ClientEvents.register();
+        }
     }
 
     /**
@@ -62,10 +69,14 @@ public class RealHardcoreMod {
     }
 
     /**
-     * ЛОГИКА 2 и 3: ИНТЕРФЕЙС НА РУССКОМ (LAN и Экран Смерти)
+     * ЛОГИКА 2 и 3: ИНТЕРФЕЙС НА РУССКОМ (Изолировано только для Клиента)
      */
-    @Mod.EventBusSubscriber(modid = MODID, value = Dist.CLIENT)
+    @OnlyIn(Dist.CLIENT)
     public static class ClientEvents {
+        
+        public static void register() {
+            MinecraftForge.EVENT_BUS.register(ClientEvents.class);
+        }
 
         @SubscribeEvent
         public static void onScreenInit(ScreenEvent.Init.Post event) {
@@ -113,7 +124,6 @@ public class RealHardcoreMod {
             }
         }
 
-        // Чистый метод удаления папки на Java NIO (без сторонних библиотек Apache)
         private static void deleteCurrentWorldAndLeave(Minecraft mc) {
             if (mc.getSingleplayerServer() != null) {
                 File savesDir = new File(mc.gameDirectory, "saves");
@@ -127,7 +137,6 @@ public class RealHardcoreMod {
 
                 try {
                     if (worldFolder.exists()) {
-                        // Удаляем рекурсивно все файлы и папки внутри сохранения стандартным Java Files API
                         Files.walk(worldFolder.toPath())
                              .sorted(Comparator.reverseOrder())
                              .map(Path::toFile)
