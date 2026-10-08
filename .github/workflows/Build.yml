@@ -6,19 +6,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-      - name: Fix and Generate Wrapper
-        run: gradle wrapper
-      - name: Build with Gradle
-        run: chmod +x gradlew && ./gradlew build
+
+      - name: Download Clean Forge MDK
+        run: |
+          wget -O mdk.zip https://minecraftforge.net
+          unzip mdk.zip -d forge_mdk
+          
+      - name: Copy Custom Code to MDK
+        run: |
+          mkdir -p forge_mdk/src/main/java/com/example/realhardcore
+          cp src/main/java/com/example/realhardcore/RealHardcoreMod.java forge_mdk/src/main/java/com/example/realhardcore/
+          
+      - name: Fix Encoding and Build
+        run: |
+          cd forge_mdk
+          chmod +x gradlew
+          ./gradlew build -Dfile.encoding=UTF-8
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: my-hardcore-mod
-
+          path: forge_mdk/build/libs/*.jar
