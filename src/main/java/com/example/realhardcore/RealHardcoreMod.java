@@ -17,7 +17,6 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.loading.FMLEnvironment;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,12 +30,8 @@ public class RealHardcoreMod {
     public static final String MODID = "examplemod";
 
     public RealHardcoreMod() {
+        // Регистрируем основной класс мода для обработки тотемов на сервере
         MinecraftForge.EVENT_BUS.register(this);
-        
-        // Подключаем интерфейсы только если игра запущена на ПК игрока
-        if (FMLEnvironment.dist == Dist.CLIENT) {
-            MinecraftForge.EVENT_BUS.register(ClientHandler.class);
-        }
     }
 
     /**
@@ -73,9 +68,9 @@ public class RealHardcoreMod {
     }
 
     /**
-     * ЛОГИКА 2 и 3: РАБОТА С КЛИЕНТСКИМ ИНТЕРФЕЙСОМ (Совместимо с сервером)
+     * ЛОГИКА 2 и 3: РАБОТА С КЛИЕНТСКИМ ИНТЕРФЕЙСОМ (Авто-регистрация Forge)
      */
-    @OnlyIn(Dist.CLIENT)
+    @Mod.EventBusSubscriber(modid = MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
     public static class ClientHandler {
 
         @SubscribeEvent
@@ -121,7 +116,6 @@ public class RealHardcoreMod {
                     int width = titleButton.getWidth();
                     int height = titleButton.getHeight();
 
-                    // Анонимный класс вместо лямбды решает проблемы компилятора Linux
                     Button.OnPress pressAction = new Button.OnPress() {
                         @Override
                         public void onPress(Button button) {
@@ -131,7 +125,6 @@ public class RealHardcoreMod {
 
                     Component btnText = Component.literal("УДАЛИТЬ МИР").withStyle(ChatFormatting.RED);
 
-                    // Правильный метод Forge 1.20.1 для добавления кнопок на экран через ивент
                     event.addListener(Button.builder(btnText, pressAction)
                             .bounds(x, y, width, height)
                             .build());
