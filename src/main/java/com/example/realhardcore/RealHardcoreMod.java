@@ -1,5 +1,6 @@
 package com.example.realhardcore;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.DeathScreen;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.List;
 
 @Mod(RealHardcoreMod.MODID)
 public class RealHardcoreMod {
@@ -30,14 +32,13 @@ public class RealHardcoreMod {
     public RealHardcoreMod() {
         MinecraftForge.EVENT_BUS.register(this);
         
-        // Безопасное подключение клиентских интерфейсов
         if (FMLEnvironment.dist == Dist.CLIENT) {
-            ClientEvents.register();
+            MinecraftForge.EVENT_BUS.register(ClientHandler.class);
         }
     }
 
     /**
-     * ЛОГИКА 1: ЗАПРЕТ ТОТЕМОВ И РУССКОЕ КАСТОМНОЕ СООБЩЕНИЕ В ЧАТ
+     * ЛОГИКА 1: ЗАПРЕТ ТОТЕМОВ И СООБЩЕНИЕ В ЧАТ ЧЕРЕЗ ФАЙЛ ПЕРЕВОДА
      */
     @SubscribeEvent
     public void onPlayerDeath(LivingDeathEvent event) {
@@ -58,7 +59,9 @@ public class RealHardcoreMod {
 
                 if (hadTotem) {
                     String playerName = player.getGameProfile().getName();
-                    Component customDeathMessage = Component.literal("§c" + playerName + " пытался спастись тотемом бессмертия от смерти");
+                    // Используем безопасный метод translatable, который берет русский текст из ru_ru.json
+                    Component customDeathMessage = Component.translatable("chat.realhardcore.totem_fail", playerName)
+                            .withStyle(ChatFormatting.RED);
                     
                     if (level.getServer() != null) {
                         level.getServer().getPlayerList().broadcastSystemMessage(customDeathMessage, false);
@@ -69,41 +72,42 @@ public class RealHardcoreMod {
     }
 
     /**
-     * ЛОГИКА 2 и 3: ИНТЕРФЕЙС НА РУССКОМ (Изолировано только для Клиента)
+     * ЛОГИКА 2 и 3: РАБОТА С КЛИЕНТСКИМ ИНТЕРФЕЙСОМ
      */
     @OnlyIn(Dist.CLIENT)
-    public static class ClientEvents {
-        
-        public static void register() {
-            MinecraftForge.EVENT_BUS.register(ClientEvents.class);
-        }
+    public static class ClientHandler {
 
         @SubscribeEvent
         public static void onScreenInit(ScreenEvent.Init.Post event) {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level == null || !mc.level.getLevelData().isHardcore()) return;
 
-            // Блокировка кнопки читов в LAN-меню
+            // 2. Блокировка кнопки читов в LAN-меню
             if (event.getScreen() instanceof ShareToLanScreen) {
-                event.getListeners().stream()
-                        .filter(listener -> listener instanceof Button)
-                        .map(listener -> (Button) listener)
-                        .forEach(button -> {
-                            String msg = button.getMessage().getString().toLowerCase();
-                            if (msg.contains("читы") || msg.contains("cheat")) {
-                                button.active = false;
-                            }
-                        });
+                List<?> listeners = event.getListeners();
+                for (Object listener : listeners) {
+                    if (listener instanceof Button) {
+                        Button button = (Button) listener;
+                        String msg = button.getMessage().getString().toLowerCase();
+                        if (msg.contains("читы") || msg.contains("cheat")) {
+                            button.active = false;
+                        }
+                    }
+                }
             }
 
-            // Изменение экрана смерти (Кнопка УДАЛИТЬ МИР)
+            // 3. Изменение экрана смерти
             if (event.getScreen() instanceof DeathScreen) {
                 Button titleButton = null;
-                for (var listener : event.getListeners()) {
-                    if (listener instanceof Button btn) {
+                List<?> listeners = event.getListeners();
+                
+                for (Object listener : listeners) {
+                    if (listener instanceof Button) {
+                        Button btn = (Button) listener;
                         String msg = btn.getMessage().getString().toLowerCase();
                         if (msg.contains("меню") || msg.contains("title") || msg.contains("leave")) {
                             titleButton = btn;
+                            break;
                         }
                     }
                 }
@@ -116,10 +120,20 @@ public class RealHardcoreMod {
                     int width = titleButton.getWidth();
                     int height = titleButton.getHeight();
 
-                    event.addListener(Button.builder(
-                            Component.literal("§cУДАЛИТЬ МИР"), 
-                            button -> deleteCurrentWorldAndLeave(mc)
-                    ).bounds(x, y, width, height).build());
+                    Button.OnPress pressAction = new Button.OnPress() {
+                        @Override
+                        public void onPress(Button button) {
+                            deleteCurrentWorldAndLeave(mc);
+                        }
+                    };
+
+                    // Текст кнопки подгружается из локализации и окрашивается
+                    Component btnText = Component.translatable("gui.realhardcore.delete_world")
+                            .withStyle(ChatFormatting.RED);
+
+                    event.addListener(Button.builder(btnText, pressAction)
+                            .bounds(x, y, width, height)
+                            .build());
                 }
             }
         }
@@ -142,10 +156,10 @@ public class RealHardcoreMod {
                              .map(Path::toFile)
                              .forEach(File::delete);
                         
-                        System.out.println("[РеальныйХардкор] Мир успешно удален.");
+                        System.out.println("[RealHardcore] World directory successfully deleted.");
                     }
                 } catch (IOException e) {
-                    System.err.println("[РеальныйХардкор] Ошибка удаления мира: " + e.getMessage());
+                    System.err.println("[RealHardcore] Failed to delete world: " + e.getMessage());
                 }
             }
         }
