@@ -8,9 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.storage.LevelSummary;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
@@ -26,34 +24,45 @@ public class RealHardcoreMod {
     public static final String MODID = "examplemod";
 
     public RealHardcoreMod() {
-        // Регистрируем наш класс в шине событий Forge
         MinecraftForge.EVENT_BUS.register(this);
     }
 
     /**
-     * ЛОГИКА 1: ЗАПРЕТ ТОТЕМОВ БЕССМЕРТИЯ
-     * Если игрок умирает с тотемом в руке, мы принудительно очищаем его, 
-     * чтобы игра не успела его активировать.
+     * ЛОГИКА 1: ЗАПРЕТ ТОТЕМОВ И РУССКОЕ КАСТОМНОЕ СООБЩЕНИЕ В ЧАТ
      */
     @SubscribeEvent
     public void onPlayerDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof Player player) {
             Level level = player.level();
-            // Проверяем, что включен режим хардкора (или можно проверять всегда)
+            
             if (!level.isClientSide() && level.getLevelData().isHardcore()) {
-                // Если в главной или левой руке тотем — удаляем его
+                boolean hadTotem = false;
+
+                // Проверяем тотем в основной и левой руке
                 if (player.getMainHandItem().is(Items.TOTEM_OF_UNDYING)) {
                     player.getMainHandItem().shrink(1);
+                    hadTotem = true;
                 }
                 if (player.getOffhandItem().is(Items.TOTEM_OF_UNDYING)) {
                     player.getOffhandItem().shrink(1);
+                    hadTotem = true;
+                }
+
+                // Кастомный русский текст при попытке спастись тотемом
+                if (hadTotem) {
+                    String playerName = player.getGameProfile().getName();
+                    Component customDeathMessage = Component.literal("§c" + playerName + " пытался спастись тотемом бессмертия от смерти");
+                    
+                    if (level.getServer() != null) {
+                        level.getServer().getPlayerList().broadcastSystemMessage(customDeathMessage, false);
+                    }
                 }
             }
         }
     }
 
     /**
-     * ЛОГИКА 2 и 3: ИНТЕРФЕЙС (Выполняется только на стороне клиента)
+     * ЛОГИКА 2 и 3: ИНТЕРФЕЙС НА РУССКОМ (LAN и Экран Смерти)
      */
     @Mod.EventBusSubscriber(modid = MODID, value = Dist.CLIENT)
     public static class ClientEvents {
@@ -63,24 +72,22 @@ public class RealHardcoreMod {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level == null || !mc.level.getLevelData().isHardcore()) return;
 
-            // 2. Блокировка читов в LAN
-            if (event.getScreen() instanceof ShareToLanScreen lanScreen) {
-                // Ищем кнопку, отвечающую за читы, и отключаем её/делаем неактивной
+            // Блокировка кнопки читов в LAN-меню
+            if (event.getScreen() instanceof ShareToLanScreen) {
                 event.getListeners().stream()
                         .filter(listener -> listener instanceof Button)
                         .map(listener -> (Button) listener)
                         .forEach(button -> {
-                            // В 1.20.1 текст кнопки зависит от перевода, проверяем по ключевым словам
                             String msg = button.getMessage().getString().toLowerCase();
+                            // Ищем кнопку читов по русским и английским ключевым словам
                             if (msg.contains("читы") || msg.contains("cheat")) {
-                                button.active = false; // Кнопка станет серой и кликнуть по ней нельзя
+                                button.active = false; // Делаем её серой и некликабельной
                             }
                         });
             }
 
-            // 3. Изменение экрана смерти
-            if (event.getScreen() instanceof DeathScreen deathScreen) {
-                // Ищем стандартную кнопку "Главное меню" (Title Screen) и удаляем её
+            // Изменение экрана смерти (Кнопка УДАЛИТЬ МИР)
+            if (event.getScreen() instanceof DeathScreen) {
                 Button titleButton = null;
                 for (var listener : event.getListeners()) {
                     if (listener instanceof Button btn) {
@@ -92,15 +99,14 @@ public class RealHardcoreMod {
                 }
 
                 if (titleButton != null) {
-                    event.removeListener(titleButton); // Убираем старую кнопку
+                    event.removeListener(titleButton);
                     
-                    // Координаты старой кнопки для сохранения дизайна
                     int x = titleButton.getX();
                     int y = titleButton.getY();
                     int width = titleButton.getWidth();
                     int height = titleButton.getHeight();
 
-                    // Добавляем новую кнопку "УДАЛИТЬ МИР"
+                    // Добавляем красивую красную кнопку на русском
                     event.addListener(Button.builder(
                             Component.literal("§cУДАЛИТЬ МИР"), 
                             button -> deleteCurrentWorldAndLeave(mc)
@@ -109,28 +115,25 @@ public class RealHardcoreMod {
             }
         }
 
-        // Метод полного удаления папки мира
+        // Метод удаления папки мира с русскими логами
         private static void deleteCurrentWorldAndLeave(Minecraft mc) {
             if (mc.getSingleplayerServer() != null) {
-                String folderName = mc.getSingleplayerServer().getWorldData().getLevelName();
                 File savesDir = new File(mc.gameDirectory, "saves");
                 File worldFolder = new File(savesDir, mc.getSingleplayerServer().storageSource.getLevelId());
 
-                // Сначала выходим в главное меню, чтобы закрыть все файлы мира
                 if (mc.level != null) {
                     mc.level.disconnect();
                 }
                 mc.clearLevel();
-                mc.setScreen(null); // Закрываем экран смерти
+                mc.setScreen(null);
 
-                // Удаляем файлы физически
                 try {
                     if (worldFolder.exists()) {
                         FileUtils.deleteDirectory(worldFolder);
-                        System.out.println("[RealHardcore] Мир успешно удален: " + worldFolder.getName());
+                        System.out.println("[РеальныйХардкор] Мир успешно удален: " + worldFolder.getName());
                     }
                 } catch (IOException e) {
-                    System.err.println("[RealHardcore] Не удалось удалить папку мира автоматически: " + e.getMessage());
+                    System.err.println("[РеальныйХардкор] Ошибка автоматического удаления мира: " + e.getMessage());
                 }
             }
         }
