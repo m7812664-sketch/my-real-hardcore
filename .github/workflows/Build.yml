@@ -14,23 +14,14 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Download Forge MDK via Curl
-        run: curl -L -o mdk.zip https://minecraftforge.net
-
-      - name: Unzip MDK
-        run: unzip mdk.zip -d forge_mdk
-
-      - name: Create folders
-        run: mkdir -p forge_mdk/src/main/java/com/example/realhardcore
-
-      - name: Copy Java code
-        run: cp src/main/java/com/example/realhardcore/RealHardcoreMod.java forge_mdk/src/main/java/com/example/realhardcore/
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Run compilation
-        run: cd forge_mdk && chmod +x gradlew && ./gradlew build -Dfile.encoding=UTF-8
+        run: chmod +x gradlew && ./gradlew build -Dfile.encoding=UTF-8
 
       - name: Save mod file
         uses: actions/upload-artifact@v4
         with:
           name: my-hardcore-mod
-          path: forge_mdk/build/libs/*.jar
+          path: build/libs/*.jar
