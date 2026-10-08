@@ -11,7 +11,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
@@ -30,7 +29,6 @@ public class RealHardcoreMod {
     public static final String MODID = "examplemod";
 
     public RealHardcoreMod() {
-        // Регистрируем основной класс мода для обработки тотемов на сервере
         MinecraftForge.EVENT_BUS.register(this);
     }
 
@@ -45,11 +43,12 @@ public class RealHardcoreMod {
             if (!level.isClientSide() && level.getLevelData().isHardcore()) {
                 boolean hadTotem = false;
 
-                if (player.getMainHandItem().is(Items.TOTEM_OF_UNDYING)) {
+                // Базовый метод .getItem() вместо .is() — работает на любых сборках Forge
+                if (player.getMainHandItem().getItem() == Items.TOTEM_OF_UNDYING) {
                     player.getMainHandItem().shrink(1);
                     hadTotem = true;
                 }
-                if (player.getOffhandItem().is(Items.TOTEM_OF_UNDYING)) {
+                if (player.getOffhandItem().getItem() == Items.TOTEM_OF_UNDYING) {
                     player.getOffhandItem().shrink(1);
                     hadTotem = true;
                 }
@@ -68,7 +67,7 @@ public class RealHardcoreMod {
     }
 
     /**
-     * ЛОГИКА 2 и 3: РАБОТА С КЛИЕНТСКИМ ИНТЕРФЕЙСОМ (Авто-регистрация Forge)
+     * ЛОГИКА 2 и 3: РАБОТА С КЛИЕНТСКИМ ИНТЕРФЕЙСОМ
      */
     @Mod.EventBusSubscriber(modid = MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
     public static class ClientHandler {
