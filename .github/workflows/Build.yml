@@ -21,4 +21,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: my-hardcore-mod
-          path: build/libs/*.jar
+          path: build/libs/*.jartasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
